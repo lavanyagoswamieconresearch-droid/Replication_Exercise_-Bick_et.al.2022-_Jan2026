@@ -1,0 +1,610 @@
+{smcl}
+{com}{sf}{ul off}{txt}{.-}
+      name:  {res}<unnamed>
+       {txt}log:  {res}E:\RA_01_26\STATA_assessment.smcl
+  {txt}log type:  {res}smcl
+ {txt}opened on:  {res}29 Jan 2026, 00:55:40
+
+{com}. do "C:\Users\lavan\AppData\Local\Temp\STD6250_00002j.tmp"
+{txt}
+{com}. 
+. ***************************
+. ***** STATA Assessment ****
+. ************** January 2026
+. 
+. ***********************************
+. ** Starting sample: IPUMS CPS (ORG) for 2019
+. 
+. clear all
+{res}{txt}
+{com}. cd "E:\RA_01_26\" // replace with local directory here
+{res}E:\RA_01_26
+{txt}
+{com}. use "cps_00006.dta", clear
+{txt}
+{com}. 
+. **********************************************************************
+. **# Sample Restrictions (as per Bick, Blandin, and Rogerson (2022))
+. **********************************************************************
+. keep if age>=25 & age<=64 
+{txt}(687,753 observations deleted)
+
+{com}. keep if sex==1 // males only
+{txt}(380,603 observations deleted)
+
+{com}. 
+. drop if qearnwee==4 // dropping imputed values of weekly earnings
+{txt}(24,243 observations deleted)
+
+{com}. keep if quhrsworkorg==0 // dropping imputed values of weekly working hours
+{txt}(8 observations deleted)
+
+{com}. keep if qhourwag==0 // dropping imputed values of hourly wages
+{txt}(1,617 observations deleted)
+
+{com}. keep if mish==4|mish==8 // keep if observation is in ORG 
+{txt}(265,568 observations deleted)
+
+{com}. 
+. drop if uhrsworkorg>=998  // don't know or not in universe (usual weekly hours)
+{txt}(50,927 observations deleted)
+
+{com}. drop if uhrsworkorg<10 // drop if working less than 10 hours a week at main job
+{txt}(103 observations deleted)
+
+{com}. 
+. keep if schlcoll==5 // drop if attending school or college
+{txt}(2,904 observations deleted)
+
+{com}. drop if classwkr<15 | classwkr>28 // drop if self - employed, Unpaid family worker or Missing/Unknown
+{txt}(0 observations deleted)
+
+{com}. 
+. drop if hourwage  <4 // subminwage variable is not available, 
+{txt}(33 observations deleted)
+
+{com}. // so we drop half of 7.5 <- average federal minimum hourly wage
+. drop if hourwage==999.99 // drop if not in universe
+{txt}(0 observations deleted)
+
+{com}. drop if earnweek==9999.99 // not in universe
+{txt}(0 observations deleted)
+
+{com}. drop if union==0 // drop if not in universe
+{txt}(0 observations deleted)
+
+{com}. drop if ind1950 == 0 | ind1950 == 997 | ind1950 == 998 //drop if not in universe
+{txt}(0 observations deleted)
+
+{com}. 
+. 
+. ****************************************
+. **# New Categorical Variables defined
+. ****************************************
+. 
+. gen age_2 = age*age
+{txt}
+{com}. label var age_2 "Age square"
+{txt}
+{com}. 
+. gen metro_bin = .
+{txt}(10,304 missing values generated)
+
+{com}. replace metro_bin = 1 if inlist(metro, 2, 3)
+{txt}(5,881 real changes made)
+
+{com}. replace metro_bin = 0 if metro == 1
+{txt}(2,256 real changes made)
+
+{com}. label define metro_bin_lbl ///
+>     0 "Non-metropolitan" ///
+>     1 "Metropolitan", replace
+{txt}
+{com}. label values metro_bin metro_bin_lbl
+{txt}
+{com}. label variable metro_bin "Metropolitan residence (binary)"
+{txt}
+{com}. 
+. 
+. gen race_cats = 0 // non-black, non-Hispanic
+{txt}
+{com}. replace race_cats=1 if race==200 // black
+{txt}(883 real changes made)
+
+{com}. replace race_cats=2 if race==300 // hispanic
+{txt}(166 real changes made)
+
+{com}. label define race_cats 0 "Base" 1 "Black" 2 "Hispanic"
+{txt}
+{com}. label values race_cats race_cats
+{txt}
+{com}. label variable race_cats "Race categories"
+{txt}
+{com}. 
+. gen marital_status=0
+{txt}
+{com}. replace marital_status=1 if marst>2 // non-married
+{txt}(4,842 real changes made)
+
+{com}. drop if marst==9 // not in universe
+{txt}(0 observations deleted)
+
+{com}. label define marital_status 0 "Married" 1 "Non-married"
+{txt}
+{com}. label values marital_status marital_status
+{txt}
+{com}. label var marital_status "Marital Status"
+{txt}
+{com}. 
+. **************************************************
+. * Broad industry category from ind1950
+. *_________________________________________________
+. gen ind1950_broad = floor(ind1950/100)
+{txt}
+{com}. 
+. * NIU / not reported
+. replace ind1950_broad = 0 if ind1950 == 0 | ind1950 == 997 | ind1950 == 998
+{txt}(0 real changes made)
+
+{com}. 
+. label define ind1950_broad_lbl ///
+>     0 "NIU / Not reported / Nonclassifiable" ///
+>     1 "Agriculture, Forestry, and Fishing" ///
+>     2 "Mining" ///
+>     3 "Manufacturing-Durables" ///
+>     4 "Manufacturing-Nondurables" ///
+>     5 "Transportation, Communication, and Other Utilities" ///
+>     6 "Wholesale and Retail Trade" ///
+>     7 "Finance, Insurance, and Real Estate" ///
+>     8 "Services" ///
+>     9 "Public Administration"
+{txt}
+{com}. 
+. label values ind1950_broad ind1950_broad_lbl
+{txt}
+{com}. label variable ind1950_broad "Industry, broad category (IND1950 first digit)"
+{txt}
+{com}. *************************************************
+. gen sector=.
+{txt}(10,304 missing values generated)
+
+{com}. replace sector=0 if classwkr>14 & classwkr<24
+{txt}(9,311 real changes made)
+
+{com}. replace sector=1 if classwkr>23 & classwkr<29
+{txt}(993 real changes made)
+
+{com}. label define sector 0 "Private" 1"Public"
+{txt}
+{com}. label values sector sector
+{txt}
+{com}. label var sector "Sector"
+{txt}
+{com}. 
+. gen union_cov =0
+{txt}
+{com}. replace union_cov=1 if union >1
+{txt}(1,574 real changes made)
+
+{com}. label define union_cov 0 "Not union covered" 1 "Union covered"
+{txt}
+{com}. label values union_cov union_cov
+{txt}
+{com}. label var union_cov "Covered by union"
+{txt}
+{com}. 
+. gen educ_cat=.
+{txt}(10,304 missing values generated)
+
+{com}. replace educ_cat=1 if educ<=72
+{txt}(1,240 real changes made)
+
+{com}. replace educ_cat=2 if educ>=73 & educ<111
+{txt}(7,390 real changes made)
+
+{com}. replace educ_cat=3 if educ>=111 & educ<=122
+{txt}(1,393 real changes made)
+
+{com}. replace educ_cat=4 if educ>122
+{txt}(281 real changes made)
+
+{com}. label define educ_cat 1 "LHS" 2 "HS" 3 "Bach" 4 "Bach+"
+{txt}
+{com}. label values educ_cat educ_cat
+{txt}
+{com}. label var educ_cat "Education categories"
+{txt}
+{com}. 
+. ***********************************************
+. ** Generate usual weekly working hour bins
+. *______________________________________________
+. * Create hour bins: 10–65 in 5-hour bins, top-code at 70+
+. gen hour_bin = .
+{txt}(10,304 missing values generated)
+
+{com}. 
+. replace hour_bin = floor((uhrswork1 - 10)/5) ///
+>     if inrange(uhrswork1, 10, 69)
+{txt}(9,760 real changes made)
+
+{com}. 
+. replace hour_bin = 12 if inrange(uhrswork1, 70, 99)
+{txt}(97 real changes made)
+
+{com}. 
+. * Define value labels
+. label define hour_bin 0 "10" 1 "15" 2 "20" 3 "25" 4 "30" 5 "35" 6 "40" 7 "45" 8 "50" 9 "55" 10 "60" 11 "65" 12 "70+"
+{txt}
+{com}. 
+. 
+. label values hour_bin hour_bin
+{txt}
+{com}. label var hour_bin "Hours bin (usual weekly hours)"
+{txt}
+{com}. **************************************************************************
+. 
+. ***********************************
+. **# Dependent Variables
+. ***********************************
+. gen ln_hourwage = ln(hourwage)
+{txt}
+{com}. label var ln_hourwage "Log of Hourly wage"
+{txt}
+{com}. 
+. gen ln_hourwage2 = ln(earnweek/uhrsworkorg)
+{txt}
+{com}. 
+. corr ln_hourwage ln_hourwage2 // 93% correlation
+{txt}(obs=10,304)
+
+             {c |} ln_hou~e ln_hou~2
+{hline 13}{c +}{hline 18}
+ ln_hourwage {c |}{res}   1.0000
+{txt}ln_hourwage2 {c |}{res}   0.9319   1.0000
+
+{txt}
+{com}. 
+. gen ln_earnweek = ln(earnweek_cpiu_2010)
+{txt}
+{com}. label var ln_earnweek "Log of Weekly Earnings"
+{txt}
+{com}. ***********************************
+. **# Regressions
+. ***********************************
+. 
+. local controls age age_2 ib1.metro_bin ib0.race_cats ib0.marital_status ib8.ind1950_broad ib0.sector ib0.union_cov ib1.educ_cat i.month ib6.statefip
+{txt}
+{com}. 
+. reg ln_hourwage ib6.hour_bin `controls' [pw=earnwt], vce(robust)
+{txt}(sum of wgt is 91,929,061.8197)
+
+Linear regression                               Number of obs     = {res}     7,799
+                                                {txt}F(91, 7707)       =  {res}    50.89
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.4012
+                                                {txt}Root MSE          =    {res} .31746
+
+{txt}{hline 52}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 53}{c |}{col 65}    Robust
+{col 1}                                        ln_hourwage{col 53}{c |} Coefficient{col 65}  std. err.{col 77}      t{col 85}   P>|t|{col 93}     [95% con{col 106}f. interval]
+{hline 52}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 43}hour_bin {c |}
+{space 48}10  {c |}{col 53}{res}{space 2}-.2570161{col 65}{space 2} .0364089{col 76}{space 1}   -7.06{col 85}{space 3}0.000{col 93}{space 4}-.3283875{col 106}{space 3}-.1856447
+{txt}{space 48}15  {c |}{col 53}{res}{space 2}-.2763622{col 65}{space 2} .0475387{col 76}{space 1}   -5.81{col 85}{space 3}0.000{col 93}{space 4} -.369551{col 106}{space 3}-.1831734
+{txt}{space 48}20  {c |}{col 53}{res}{space 2}-.3001546{col 65}{space 2} .0269618{col 76}{space 1}  -11.13{col 85}{space 3}0.000{col 93}{space 4} -.353007{col 106}{space 3}-.2473022
+{txt}{space 48}25  {c |}{col 53}{res}{space 2}-.3090235{col 65}{space 2}  .029845{col 76}{space 1}  -10.35{col 85}{space 3}0.000{col 93}{space 4}-.3675278{col 106}{space 3}-.2505191
+{txt}{space 48}30  {c |}{col 53}{res}{space 2}-.2080669{col 65}{space 2} .0232961{col 76}{space 1}   -8.93{col 85}{space 3}0.000{col 93}{space 4}-.2537336{col 106}{space 3}-.1624003
+{txt}{space 48}35  {c |}{col 53}{res}{space 2}-.0690796{col 65}{space 2} .0210609{col 76}{space 1}   -3.28{col 85}{space 3}0.001{col 93}{space 4}-.1103648{col 106}{space 3}-.0277945
+{txt}{space 48}45  {c |}{col 53}{res}{space 2} .0453543{col 65}{space 2} .0169899{col 76}{space 1}    2.67{col 85}{space 3}0.008{col 93}{space 4} .0120495{col 106}{space 3} .0786592
+{txt}{space 48}50  {c |}{col 53}{res}{space 2} .1017111{col 65}{space 2}  .020027{col 76}{space 1}    5.08{col 85}{space 3}0.000{col 93}{space 4} .0624527{col 106}{space 3} .1409696
+{txt}{space 48}55  {c |}{col 53}{res}{space 2} .0671343{col 65}{space 2} .0348717{col 76}{space 1}    1.93{col 85}{space 3}0.054{col 93}{space 4}-.0012236{col 106}{space 3} .1354922
+{txt}{space 48}60  {c |}{col 53}{res}{space 2} .1132671{col 65}{space 2}  .030318{col 76}{space 1}    3.74{col 85}{space 3}0.000{col 93}{space 4} .0538355{col 106}{space 3} .1726987
+{txt}{space 48}65  {c |}{col 53}{res}{space 2} .0674191{col 65}{space 2} .0749101{col 76}{space 1}    0.90{col 85}{space 3}0.368{col 93}{space 4}-.0794251{col 106}{space 3} .2142632
+{txt}{space 47}70+  {c |}{col 53}{res}{space 2}  .095241{col 65}{space 2} .0508923{col 76}{space 1}    1.87{col 85}{space 3}0.061{col 93}{space 4}-.0045218{col 106}{space 3} .1950038
+{txt}{space 51} {c |}
+{space 48}age {c |}{col 53}{res}{space 2} .0331523{col 65}{space 2} .0047921{col 76}{space 1}    6.92{col 85}{space 3}0.000{col 93}{space 4} .0237585{col 106}{space 3} .0425461
+{txt}{space 46}age_2 {c |}{col 53}{res}{space 2}-.0003627{col 65}{space 2} .0000614{col 76}{space 1}   -5.91{col 85}{space 3}0.000{col 93}{space 4}-.0004831{col 106}{space 3}-.0002424
+{txt}{space 51} {c |}
+{space 42}metro_bin {c |}
+{space 34}Non-metropolitan  {c |}{col 53}{res}{space 2}-.0419548{col 65}{space 2} .0108935{col 76}{space 1}   -3.85{col 85}{space 3}0.000{col 93}{space 4}-.0633091{col 106}{space 3}-.0206005
+{txt}{space 51} {c |}
+{space 42}race_cats {c |}
+{space 45}Black  {c |}{col 53}{res}{space 2}-.1094709{col 65}{space 2} .0144993{col 76}{space 1}   -7.55{col 85}{space 3}0.000{col 93}{space 4}-.1378936{col 106}{space 3}-.0810482
+{txt}{space 42}Hispanic  {c |}{col 53}{res}{space 2}-.0384055{col 65}{space 2} .0428024{col 76}{space 1}   -0.90{col 85}{space 3}0.370{col 93}{space 4}-.1223098{col 106}{space 3} .0454988
+{txt}{space 51} {c |}
+{space 37}marital_status {c |}
+{space 39}Non-married  {c |}{col 53}{res}{space 2}-.0874792{col 65}{space 2} .0087718{col 76}{space 1}   -9.97{col 85}{space 3}0.000{col 93}{space 4}-.1046744{col 106}{space 3}-.0702841
+{txt}{space 51} {c |}
+{space 38}ind1950_broad {c |}
+{space 16}Agriculture, Forestry, and Fishing  {c |}{col 53}{res}{space 2}-.1853237{col 65}{space 2} .0202726{col 76}{space 1}   -9.14{col 85}{space 3}0.000{col 93}{space 4}-.2250636{col 106}{space 3}-.1455839
+{txt}{space 44}Mining  {c |}{col 53}{res}{space 2} .1338527{col 65}{space 2} .0146833{col 76}{space 1}    9.12{col 85}{space 3}0.000{col 93}{space 4} .1050694{col 106}{space 3}  .162636
+{txt}{space 28}Manufacturing-Durables  {c |}{col 53}{res}{space 2} .0460775{col 65}{space 2} .0145909{col 76}{space 1}    3.16{col 85}{space 3}0.002{col 93}{space 4} .0174754{col 106}{space 3} .0746796
+{txt}{space 25}Manufacturing-Nondurables  {c |}{col 53}{res}{space 2}-.0334382{col 65}{space 2} .0181094{col 76}{space 1}   -1.85{col 85}{space 3}0.065{col 93}{space 4}-.0689376{col 106}{space 3} .0020611
+{txt}Transportation, Communication, and Other Utilities  {c |}{col 53}{res}{space 2} .1018279{col 65}{space 2} .0179024{col 76}{space 1}    5.69{col 85}{space 3}0.000{col 93}{space 4} .0667343{col 106}{space 3} .1369214
+{txt}{space 24}Wholesale and Retail Trade  {c |}{col 53}{res}{space 2}-.1611684{col 65}{space 2} .0126943{col 76}{space 1}  -12.70{col 85}{space 3}0.000{col 93}{space 4}-.1860528{col 106}{space 3}-.1362841
+{txt}{space 15}Finance, Insurance, and Real Estate  {c |}{col 53}{res}{space 2} .0275226{col 65}{space 2} .0246276{col 76}{space 1}    1.12{col 85}{space 3}0.264{col 93}{space 4}-.0207542{col 106}{space 3} .0757994
+{txt}{space 29}Public Administration  {c |}{col 53}{res}{space 2}  .165377{col 65}{space 2} .0282008{col 76}{space 1}    5.86{col 85}{space 3}0.000{col 93}{space 4} .1100958{col 106}{space 3} .2206581
+{txt}{space 51} {c |}
+{space 45}sector {c |}
+{space 44}Public  {c |}{col 53}{res}{space 2} -.041678{col 65}{space 2} .0225051{col 76}{space 1}   -1.85{col 85}{space 3}0.064{col 93}{space 4}-.0857941{col 106}{space 3} .0024382
+{txt}{space 51} {c |}
+{space 42}union_cov {c |}
+{space 37}Union covered  {c |}{col 53}{res}{space 2} .2441762{col 65}{space 2} .0125327{col 76}{space 1}   19.48{col 85}{space 3}0.000{col 93}{space 4} .2196087{col 106}{space 3} .2687437
+{txt}{space 51} {c |}
+{space 43}educ_cat {c |}
+{space 48}HS  {c |}{col 53}{res}{space 2} .1782513{col 65}{space 2} .0108057{col 76}{space 1}   16.50{col 85}{space 3}0.000{col 93}{space 4} .1570693{col 106}{space 3} .1994334
+{txt}{space 46}Bach  {c |}{col 53}{res}{space 2} .3455118{col 65}{space 2} .0163599{col 76}{space 1}   21.12{col 85}{space 3}0.000{col 93}{space 4}  .313442{col 106}{space 3} .3775817
+{txt}{space 45}Bach+  {c |}{col 53}{res}{space 2} .5207306{col 65}{space 2} .0432774{col 76}{space 1}   12.03{col 85}{space 3}0.000{col 93}{space 4} .4358952{col 106}{space 3} .6055661
+{txt}{space 51} {c |}
+{space 46}month {c |}
+{space 42}february  {c |}{col 53}{res}{space 2} .0033128{col 65}{space 2} .0201361{col 76}{space 1}    0.16{col 85}{space 3}0.869{col 93}{space 4}-.0361594{col 106}{space 3} .0427851
+{txt}{space 45}march  {c |}{col 53}{res}{space 2} .0007656{col 65}{space 2} .0200617{col 76}{space 1}    0.04{col 85}{space 3}0.970{col 93}{space 4}-.0385609{col 106}{space 3} .0400921
+{txt}{space 45}april  {c |}{col 53}{res}{space 2} .0145799{col 65}{space 2} .0203164{col 76}{space 1}    0.72{col 85}{space 3}0.473{col 93}{space 4}-.0252457{col 106}{space 3} .0544056
+{txt}{space 47}may  {c |}{col 53}{res}{space 2} .0184384{col 65}{space 2} .0197398{col 76}{space 1}    0.93{col 85}{space 3}0.350{col 93}{space 4} -.020257{col 106}{space 3} .0571338
+{txt}{space 46}june  {c |}{col 53}{res}{space 2} -.010841{col 65}{space 2} .0196706{col 76}{space 1}   -0.55{col 85}{space 3}0.582{col 93}{space 4}-.0494007{col 106}{space 3} .0277186
+{txt}{space 46}july  {c |}{col 53}{res}{space 2} .0183757{col 65}{space 2}  .019903{col 76}{space 1}    0.92{col 85}{space 3}0.356{col 93}{space 4}-.0206397{col 106}{space 3}  .057391
+{txt}{space 44}august  {c |}{col 53}{res}{space 2} .0017087{col 65}{space 2} .0197846{col 76}{space 1}    0.09{col 85}{space 3}0.931{col 93}{space 4}-.0370746{col 106}{space 3} .0404919
+{txt}{space 41}september  {c |}{col 53}{res}{space 2} .0197655{col 65}{space 2}  .020024{col 76}{space 1}    0.99{col 85}{space 3}0.324{col 93}{space 4}-.0194871{col 106}{space 3}  .059018
+{txt}{space 43}october  {c |}{col 53}{res}{space 2} .0303824{col 65}{space 2} .0194243{col 76}{space 1}    1.56{col 85}{space 3}0.118{col 93}{space 4}-.0076945{col 106}{space 3} .0684594
+{txt}{space 42}november  {c |}{col 53}{res}{space 2} .0403149{col 65}{space 2} .0200981{col 76}{space 1}    2.01{col 85}{space 3}0.045{col 93}{space 4} .0009172{col 106}{space 3} .0797127
+{txt}{space 42}december  {c |}{col 53}{res}{space 2} .0258657{col 65}{space 2} .0211119{col 76}{space 1}    1.23{col 85}{space 3}0.221{col 93}{space 4}-.0155194{col 106}{space 3} .0672508
+{txt}{space 51} {c |}
+{space 43}statefip {c |}
+{space 43}alabama  {c |}{col 53}{res}{space 2}-.1114494{col 65}{space 2} .0316075{col 76}{space 1}   -3.53{col 85}{space 3}0.000{col 93}{space 4}-.1734086{col 106}{space 3}-.0494901
+{txt}{space 44}alaska  {c |}{col 53}{res}{space 2} .0590213{col 65}{space 2}  .034294{col 76}{space 1}    1.72{col 85}{space 3}0.085{col 93}{space 4}-.0082043{col 106}{space 3} .1262468
+{txt}{space 43}arizona  {c |}{col 53}{res}{space 2}-.0661467{col 65}{space 2}  .027979{col 76}{space 1}   -2.36{col 85}{space 3}0.018{col 93}{space 4}-.1209932{col 106}{space 3}-.0113002
+{txt}{space 42}arkansas  {c |}{col 53}{res}{space 2}-.2749746{col 65}{space 2}  .032049{col 76}{space 1}   -8.58{col 85}{space 3}0.000{col 93}{space 4}-.3377994{col 106}{space 3}-.2121499
+{txt}{space 42}colorado  {c |}{col 53}{res}{space 2} .0093071{col 65}{space 2} .0320379{col 76}{space 1}    0.29{col 85}{space 3}0.771{col 93}{space 4}-.0534958{col 106}{space 3}   .07211
+{txt}{space 39}connecticut  {c |}{col 53}{res}{space 2}-.0319861{col 65}{space 2} .0389905{col 76}{space 1}   -0.82{col 85}{space 3}0.412{col 93}{space 4}-.1084181{col 106}{space 3} .0444459
+{txt}{space 30}district of columbia  {c |}{col 53}{res}{space 2}-.0282592{col 65}{space 2} .0536255{col 76}{space 1}   -0.53{col 85}{space 3}0.598{col 93}{space 4}-.1333797{col 106}{space 3} .0768613
+{txt}{space 43}florida  {c |}{col 53}{res}{space 2}-.2278833{col 65}{space 2}  .022892{col 76}{space 1}   -9.95{col 85}{space 3}0.000{col 93}{space 4}-.2727578{col 106}{space 3}-.1830089
+{txt}{space 43}georgia  {c |}{col 53}{res}{space 2}-.1640251{col 65}{space 2} .0305756{col 76}{space 1}   -5.36{col 85}{space 3}0.000{col 93}{space 4}-.2239616{col 106}{space 3}-.1040885
+{txt}{space 44}hawaii  {c |}{col 53}{res}{space 2}-.0333198{col 65}{space 2} .0431296{col 76}{space 1}   -0.77{col 85}{space 3}0.440{col 93}{space 4}-.1178656{col 106}{space 3} .0512259
+{txt}{space 45}idaho  {c |}{col 53}{res}{space 2}-.1306813{col 65}{space 2} .0248567{col 76}{space 1}   -5.26{col 85}{space 3}0.000{col 93}{space 4}-.1794071{col 106}{space 3}-.0819554
+{txt}{space 42}illinois  {c |}{col 53}{res}{space 2}-.0840817{col 65}{space 2} .0255198{col 76}{space 1}   -3.29{col 85}{space 3}0.001{col 93}{space 4}-.1341075{col 106}{space 3} -.034056
+{txt}{space 43}indiana  {c |}{col 53}{res}{space 2}-.0570791{col 65}{space 2} .0277695{col 76}{space 1}   -2.06{col 85}{space 3}0.040{col 93}{space 4}-.1115149{col 106}{space 3}-.0026432
+{txt}{space 46}iowa  {c |}{col 53}{res}{space 2}-.0413836{col 65}{space 2} .0339576{col 76}{space 1}   -1.22{col 85}{space 3}0.223{col 93}{space 4}-.1079497{col 106}{space 3} .0251825
+{txt}{space 44}kansas  {c |}{col 53}{res}{space 2}-.1195676{col 65}{space 2} .0260654{col 76}{space 1}   -4.59{col 85}{space 3}0.000{col 93}{space 4} -.170663{col 106}{space 3}-.0684722
+{txt}{space 42}kentucky  {c |}{col 53}{res}{space 2}-.1859545{col 65}{space 2} .0315675{col 76}{space 1}   -5.89{col 85}{space 3}0.000{col 93}{space 4}-.2478354{col 106}{space 3}-.1240736
+{txt}{space 41}louisiana  {c |}{col 53}{res}{space 2}-.0917547{col 65}{space 2} .0356826{col 76}{space 1}   -2.57{col 85}{space 3}0.010{col 93}{space 4}-.1617022{col 106}{space 3}-.0218072
+{txt}{space 45}maine  {c |}{col 53}{res}{space 2}-.1896928{col 65}{space 2}    .0429{col 76}{space 1}   -4.42{col 85}{space 3}0.000{col 93}{space 4}-.2737885{col 106}{space 3}-.1055972
+{txt}{space 42}maryland  {c |}{col 53}{res}{space 2} .0289712{col 65}{space 2} .0479239{col 76}{space 1}    0.60{col 85}{space 3}0.546{col 93}{space 4}-.0649727{col 106}{space 3}  .122915
+{txt}{space 37}massachusetts  {c |}{col 53}{res}{space 2}-.0565557{col 65}{space 2} .0320499{col 76}{space 1}   -1.76{col 85}{space 3}0.078{col 93}{space 4}-.1193821{col 106}{space 3} .0062707
+{txt}{space 42}michigan  {c |}{col 53}{res}{space 2}-.1249404{col 65}{space 2} .0246394{col 76}{space 1}   -5.07{col 85}{space 3}0.000{col 93}{space 4}-.1732404{col 106}{space 3}-.0766404
+{txt}{space 41}minnesota  {c |}{col 53}{res}{space 2} .0357899{col 65}{space 2} .0263062{col 76}{space 1}    1.36{col 85}{space 3}0.174{col 93}{space 4}-.0157774{col 106}{space 3} .0873573
+{txt}{space 39}mississippi  {c |}{col 53}{res}{space 2}-.1731043{col 65}{space 2}  .027744{col 76}{space 1}   -6.24{col 85}{space 3}0.000{col 93}{space 4}-.2274902{col 106}{space 3}-.1187184
+{txt}{space 42}missouri  {c |}{col 53}{res}{space 2}-.1331708{col 65}{space 2} .0312564{col 76}{space 1}   -4.26{col 85}{space 3}0.000{col 93}{space 4}-.1944419{col 106}{space 3}-.0718997
+{txt}{space 43}montana  {c |}{col 53}{res}{space 2}-.0191051{col 65}{space 2} .0280809{col 76}{space 1}   -0.68{col 85}{space 3}0.496{col 93}{space 4}-.0741513{col 106}{space 3} .0359411
+{txt}{space 42}nebraska  {c |}{col 53}{res}{space 2}-.0749554{col 65}{space 2} .0293423{col 76}{space 1}   -2.55{col 85}{space 3}0.011{col 93}{space 4}-.1324744{col 106}{space 3}-.0174365
+{txt}{space 44}nevada  {c |}{col 53}{res}{space 2}-.0533625{col 65}{space 2} .0291997{col 76}{space 1}   -1.83{col 85}{space 3}0.068{col 93}{space 4}-.1106019{col 106}{space 3} .0038769
+{txt}{space 37}new hampshire  {c |}{col 53}{res}{space 2}  .018712{col 65}{space 2} .0289628{col 76}{space 1}    0.65{col 85}{space 3}0.518{col 93}{space 4} -.038063{col 106}{space 3} .0754869
+{txt}{space 40}new jersey  {c |}{col 53}{res}{space 2}-.0626136{col 65}{space 2} .0414397{col 76}{space 1}   -1.51{col 85}{space 3}0.131{col 93}{space 4}-.1438466{col 106}{space 3} .0186195
+{txt}{space 40}new mexico  {c |}{col 53}{res}{space 2}-.1303625{col 65}{space 2} .0312116{col 76}{space 1}   -4.18{col 85}{space 3}0.000{col 93}{space 4}-.1915458{col 106}{space 3}-.0691793
+{txt}{space 42}new york  {c |}{col 53}{res}{space 2}-.0269462{col 65}{space 2} .0276868{col 76}{space 1}   -0.97{col 85}{space 3}0.330{col 93}{space 4}-.0812199{col 106}{space 3} .0273274
+{txt}{space 36}north carolina  {c |}{col 53}{res}{space 2}-.1301062{col 65}{space 2} .0296444{col 76}{space 1}   -4.39{col 85}{space 3}0.000{col 93}{space 4}-.1882173{col 106}{space 3}-.0719951
+{txt}{space 38}north dakota  {c |}{col 53}{res}{space 2} .1077283{col 65}{space 2} .0323879{col 76}{space 1}    3.33{col 85}{space 3}0.001{col 93}{space 4} .0442392{col 106}{space 3} .1712173
+{txt}{space 46}ohio  {c |}{col 53}{res}{space 2}-.1437533{col 65}{space 2} .0202787{col 76}{space 1}   -7.09{col 85}{space 3}0.000{col 93}{space 4}-.1835051{col 106}{space 3}-.1040015
+{txt}{space 42}oklahoma  {c |}{col 53}{res}{space 2}-.1587346{col 65}{space 2} .0381986{col 76}{space 1}   -4.16{col 85}{space 3}0.000{col 93}{space 4}-.2336142{col 106}{space 3}-.0838549
+{txt}{space 44}oregon  {c |}{col 53}{res}{space 2} .0071501{col 65}{space 2} .0279704{col 76}{space 1}    0.26{col 85}{space 3}0.798{col 93}{space 4}-.0476794{col 106}{space 3} .0619796
+{txt}{space 38}pennsylvania  {c |}{col 53}{res}{space 2}-.1097858{col 65}{space 2} .0245122{col 76}{space 1}   -4.48{col 85}{space 3}0.000{col 93}{space 4}-.1578363{col 106}{space 3}-.0617352
+{txt}{space 38}rhode island  {c |}{col 53}{res}{space 2}-.0413127{col 65}{space 2} .0346238{col 76}{space 1}   -1.19{col 85}{space 3}0.233{col 93}{space 4}-.1091847{col 106}{space 3} .0265593
+{txt}{space 36}south carolina  {c |}{col 53}{res}{space 2}-.1672295{col 65}{space 2} .0462846{col 76}{space 1}   -3.61{col 85}{space 3}0.000{col 93}{space 4}-.2579599{col 106}{space 3} -.076499
+{txt}{space 38}south dakota  {c |}{col 53}{res}{space 2}-.0671141{col 65}{space 2} .0345615{col 76}{space 1}   -1.94{col 85}{space 3}0.052{col 93}{space 4} -.134864{col 106}{space 3} .0006358
+{txt}{space 41}tennessee  {c |}{col 53}{res}{space 2}-.1018878{col 65}{space 2} .0287409{col 76}{space 1}   -3.55{col 85}{space 3}0.000{col 93}{space 4}-.1582277{col 106}{space 3}-.0455479
+{txt}{space 45}texas  {c |}{col 53}{res}{space 2}-.1449913{col 65}{space 2} .0198958{col 76}{space 1}   -7.29{col 85}{space 3}0.000{col 93}{space 4}-.1839926{col 106}{space 3}-.1059901
+{txt}{space 46}utah  {c |}{col 53}{res}{space 2}-.0331402{col 65}{space 2} .0257001{col 76}{space 1}   -1.29{col 85}{space 3}0.197{col 93}{space 4}-.0835194{col 106}{space 3} .0172391
+{txt}{space 43}vermont  {c |}{col 53}{res}{space 2}-.0545755{col 65}{space 2} .0426903{col 76}{space 1}   -1.28{col 85}{space 3}0.201{col 93}{space 4}-.1382601{col 106}{space 3} .0291091
+{txt}{space 42}virginia  {c |}{col 53}{res}{space 2}-.0697274{col 65}{space 2} .0354707{col 76}{space 1}   -1.97{col 85}{space 3}0.049{col 93}{space 4}-.1392595{col 106}{space 3}-.0001952
+{txt}{space 40}washington  {c |}{col 53}{res}{space 2} .0607079{col 65}{space 2} .0227052{col 76}{space 1}    2.67{col 85}{space 3}0.008{col 93}{space 4} .0161996{col 106}{space 3} .1052162
+{txt}{space 37}west virginia  {c |}{col 53}{res}{space 2} -.195186{col 65}{space 2} .0317835{col 76}{space 1}   -6.14{col 85}{space 3}0.000{col 93}{space 4}-.2574904{col 106}{space 3}-.1328817
+{txt}{space 41}wisconsin  {c |}{col 53}{res}{space 2}-.0805792{col 65}{space 2} .0254396{col 76}{space 1}   -3.17{col 85}{space 3}0.002{col 93}{space 4}-.1304477{col 106}{space 3}-.0307107
+{txt}{space 43}wyoming  {c |}{col 53}{res}{space 2} .0956702{col 65}{space 2} .0315709{col 76}{space 1}    3.03{col 85}{space 3}0.002{col 93}{space 4} .0337826{col 106}{space 3} .1575578
+{txt}{space 51} {c |}
+{space 46}_cons {c |}{col 53}{res}{space 2} 2.131044{col 65}{space 2} .0920461{col 76}{space 1}   23.15{col 85}{space 3}0.000{col 93}{space 4} 1.950609{col 106}{space 3} 2.311479
+{txt}{hline 52}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}
+{com}. 
+. est store hourly
+{txt}
+{com}. coefplot hourly, ///
+>     keep(*.hour_bin) ///
+>     drop(_cons) ///
+>     vertical ///
+>     xline(6, lpattern(dash)) ///
+>     yline(0, lcolor(black)) ///
+>     recast(connected) ///
+>     ciopts(recast(rarea) color(gs12)) ///
+>     msymbol(D) ///
+>     title("(A) log Hourly Wages") ///
+>     xtitle("Hours bin (usual weekly hours)") ///
+>     ytitle("log of Hourly Wages") ///
+>     legend(on position(6)order(1 "95% confidence interval" 2 "Point estimate"))
+{res}{txt}
+{com}.         
+. graph export "Graph1.png", as(png) name("Graph") replace
+{txt}{p 0 4 2}
+file {bf}
+Graph1.png{rm}
+saved as
+PNG
+format
+{p_end}
+
+{com}. 
+. 
+. reg ln_earnweek ib6.hour_bin `controls' [pw=earnwt], vce(robust)
+{txt}(sum of wgt is 91,929,061.8197)
+
+Linear regression                               Number of obs     = {res}     7,799
+                                                {txt}F(91, 7707)       =  {res}    93.52
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.5570
+                                                {txt}Root MSE          =    {res} .34854
+
+{txt}{hline 52}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 53}{c |}{col 65}    Robust
+{col 1}                                        ln_earnweek{col 53}{c |} Coefficient{col 65}  std. err.{col 77}      t{col 85}   P>|t|{col 93}     [95% con{col 106}f. interval]
+{hline 52}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 43}hour_bin {c |}
+{space 48}10  {c |}{col 53}{res}{space 2}-1.477316{col 65}{space 2} .0628341{col 76}{space 1}  -23.51{col 85}{space 3}0.000{col 93}{space 4}-1.600488{col 106}{space 3}-1.354144
+{txt}{space 48}15  {c |}{col 53}{res}{space 2}-1.161954{col 65}{space 2} .0565512{col 76}{space 1}  -20.55{col 85}{space 3}0.000{col 93}{space 4}-1.272809{col 106}{space 3}-1.051098
+{txt}{space 48}20  {c |}{col 53}{res}{space 2}-.9416429{col 65}{space 2} .0304852{col 76}{space 1}  -30.89{col 85}{space 3}0.000{col 93}{space 4}-1.001402{col 106}{space 3}-.8818836
+{txt}{space 48}25  {c |}{col 53}{res}{space 2}-.7522511{col 65}{space 2} .0340718{col 76}{space 1}  -22.08{col 85}{space 3}0.000{col 93}{space 4} -.819041{col 106}{space 3}-.6854611
+{txt}{space 48}30  {c |}{col 53}{res}{space 2}-.4533338{col 65}{space 2} .0251519{col 76}{space 1}  -18.02{col 85}{space 3}0.000{col 93}{space 4}-.5026382{col 106}{space 3}-.4040293
+{txt}{space 48}35  {c |}{col 53}{res}{space 2}-.1664729{col 65}{space 2} .0215749{col 76}{space 1}   -7.72{col 85}{space 3}0.000{col 93}{space 4}-.2087656{col 106}{space 3}-.1241801
+{txt}{space 48}45  {c |}{col 53}{res}{space 2} .1790776{col 65}{space 2} .0183679{col 76}{space 1}    9.75{col 85}{space 3}0.000{col 93}{space 4} .1430715{col 106}{space 3} .2150837
+{txt}{space 48}50  {c |}{col 53}{res}{space 2} .3455773{col 65}{space 2} .0229767{col 76}{space 1}   15.04{col 85}{space 3}0.000{col 93}{space 4} .3005367{col 106}{space 3} .3906179
+{txt}{space 48}55  {c |}{col 53}{res}{space 2} .4201256{col 65}{space 2} .0392742{col 76}{space 1}   10.70{col 85}{space 3}0.000{col 93}{space 4} .3431376{col 106}{space 3} .4971136
+{txt}{space 48}60  {c |}{col 53}{res}{space 2} .5258058{col 65}{space 2}  .036894{col 76}{space 1}   14.25{col 85}{space 3}0.000{col 93}{space 4} .4534835{col 106}{space 3} .5981281
+{txt}{space 48}65  {c |}{col 53}{res}{space 2} .5161803{col 65}{space 2} .1234191{col 76}{space 1}    4.18{col 85}{space 3}0.000{col 93}{space 4} .2742454{col 106}{space 3} .7581152
+{txt}{space 47}70+  {c |}{col 53}{res}{space 2} .7263859{col 65}{space 2} .0741536{col 76}{space 1}    9.80{col 85}{space 3}0.000{col 93}{space 4} .5810246{col 106}{space 3} .8717472
+{txt}{space 51} {c |}
+{space 48}age {c |}{col 53}{res}{space 2} .0317579{col 65}{space 2} .0051312{col 76}{space 1}    6.19{col 85}{space 3}0.000{col 93}{space 4} .0216993{col 106}{space 3} .0418165
+{txt}{space 46}age_2 {c |}{col 53}{res}{space 2}-.0003515{col 65}{space 2} .0000655{col 76}{space 1}   -5.37{col 85}{space 3}0.000{col 93}{space 4}-.0004799{col 106}{space 3}-.0002231
+{txt}{space 51} {c |}
+{space 42}metro_bin {c |}
+{space 34}Non-metropolitan  {c |}{col 53}{res}{space 2} -.040673{col 65}{space 2} .0121566{col 76}{space 1}   -3.35{col 85}{space 3}0.001{col 93}{space 4}-.0645032{col 106}{space 3}-.0168428
+{txt}{space 51} {c |}
+{space 42}race_cats {c |}
+{space 45}Black  {c |}{col 53}{res}{space 2}-.1085821{col 65}{space 2} .0158435{col 76}{space 1}   -6.85{col 85}{space 3}0.000{col 93}{space 4}-.1396397{col 106}{space 3}-.0775245
+{txt}{space 42}Hispanic  {c |}{col 53}{res}{space 2}-.0606929{col 65}{space 2} .0450705{col 76}{space 1}   -1.35{col 85}{space 3}0.178{col 93}{space 4}-.1490433{col 106}{space 3} .0276576
+{txt}{space 51} {c |}
+{space 37}marital_status {c |}
+{space 39}Non-married  {c |}{col 53}{res}{space 2}-.0855566{col 65}{space 2} .0095898{col 76}{space 1}   -8.92{col 85}{space 3}0.000{col 93}{space 4}-.1043552{col 106}{space 3} -.066758
+{txt}{space 51} {c |}
+{space 38}ind1950_broad {c |}
+{space 16}Agriculture, Forestry, and Fishing  {c |}{col 53}{res}{space 2}-.1936242{col 65}{space 2}  .021353{col 76}{space 1}   -9.07{col 85}{space 3}0.000{col 93}{space 4}-.2354818{col 106}{space 3}-.1517665
+{txt}{space 44}Mining  {c |}{col 53}{res}{space 2} .1430168{col 65}{space 2}  .015991{col 76}{space 1}    8.94{col 85}{space 3}0.000{col 93}{space 4} .1116701{col 106}{space 3} .1743634
+{txt}{space 28}Manufacturing-Durables  {c |}{col 53}{res}{space 2} .0554643{col 65}{space 2} .0159095{col 76}{space 1}    3.49{col 85}{space 3}0.000{col 93}{space 4} .0242774{col 106}{space 3} .0866511
+{txt}{space 25}Manufacturing-Nondurables  {c |}{col 53}{res}{space 2}-.0214488{col 65}{space 2} .0212193{col 76}{space 1}   -1.01{col 85}{space 3}0.312{col 93}{space 4}-.0630444{col 106}{space 3} .0201468
+{txt}Transportation, Communication, and Other Utilities  {c |}{col 53}{res}{space 2} .1171071{col 65}{space 2} .0194735{col 76}{space 1}    6.01{col 85}{space 3}0.000{col 93}{space 4} .0789336{col 106}{space 3} .1552805
+{txt}{space 24}Wholesale and Retail Trade  {c |}{col 53}{res}{space 2}-.1458243{col 65}{space 2} .0136581{col 76}{space 1}  -10.68{col 85}{space 3}0.000{col 93}{space 4}-.1725978{col 106}{space 3}-.1190507
+{txt}{space 15}Finance, Insurance, and Real Estate  {c |}{col 53}{res}{space 2} .0363927{col 65}{space 2}  .027042{col 76}{space 1}    1.35{col 85}{space 3}0.178{col 93}{space 4}-.0166169{col 106}{space 3} .0894024
+{txt}{space 29}Public Administration  {c |}{col 53}{res}{space 2} .1684936{col 65}{space 2} .0317567{col 76}{space 1}    5.31{col 85}{space 3}0.000{col 93}{space 4} .1062418{col 106}{space 3} .2307453
+{txt}{space 51} {c |}
+{space 45}sector {c |}
+{space 44}Public  {c |}{col 53}{res}{space 2}-.0587875{col 65}{space 2} .0238959{col 76}{space 1}   -2.46{col 85}{space 3}0.014{col 93}{space 4}-.1056299{col 106}{space 3} -.011945
+{txt}{space 51} {c |}
+{space 42}union_cov {c |}
+{space 37}Union covered  {c |}{col 53}{res}{space 2} .2725354{col 65}{space 2} .0141525{col 76}{space 1}   19.26{col 85}{space 3}0.000{col 93}{space 4} .2447927{col 106}{space 3} .3002782
+{txt}{space 51} {c |}
+{space 43}educ_cat {c |}
+{space 48}HS  {c |}{col 53}{res}{space 2} .1910425{col 65}{space 2} .0121637{col 76}{space 1}   15.71{col 85}{space 3}0.000{col 93}{space 4} .1671983{col 106}{space 3} .2148867
+{txt}{space 46}Bach  {c |}{col 53}{res}{space 2} .3618514{col 65}{space 2} .0178253{col 76}{space 1}   20.30{col 85}{space 3}0.000{col 93}{space 4} .3269091{col 106}{space 3} .3967938
+{txt}{space 45}Bach+  {c |}{col 53}{res}{space 2} .5088149{col 65}{space 2} .0452051{col 76}{space 1}   11.26{col 85}{space 3}0.000{col 93}{space 4} .4202006{col 106}{space 3} .5974292
+{txt}{space 51} {c |}
+{space 46}month {c |}
+{space 42}february  {c |}{col 53}{res}{space 2}  .011223{col 65}{space 2} .0220614{col 76}{space 1}    0.51{col 85}{space 3}0.611{col 93}{space 4}-.0320234{col 106}{space 3} .0544693
+{txt}{space 45}march  {c |}{col 53}{res}{space 2}-.0024729{col 65}{space 2} .0222096{col 76}{space 1}   -0.11{col 85}{space 3}0.911{col 93}{space 4}-.0460097{col 106}{space 3} .0410639
+{txt}{space 45}april  {c |}{col 53}{res}{space 2} -.009174{col 65}{space 2} .0220395{col 76}{space 1}   -0.42{col 85}{space 3}0.677{col 93}{space 4}-.0523773{col 106}{space 3} .0340293
+{txt}{space 47}may  {c |}{col 53}{res}{space 2} .0091763{col 65}{space 2} .0214237{col 76}{space 1}    0.43{col 85}{space 3}0.668{col 93}{space 4}  -.03282{col 106}{space 3} .0511725
+{txt}{space 46}june  {c |}{col 53}{res}{space 2}-.0248738{col 65}{space 2} .0216466{col 76}{space 1}   -1.15{col 85}{space 3}0.251{col 93}{space 4} -.067307{col 106}{space 3} .0175593
+{txt}{space 46}july  {c |}{col 53}{res}{space 2} .0185617{col 65}{space 2} .0217669{col 76}{space 1}    0.85{col 85}{space 3}0.394{col 93}{space 4}-.0241073{col 106}{space 3} .0612307
+{txt}{space 44}august  {c |}{col 53}{res}{space 2} .0014677{col 65}{space 2} .0216398{col 76}{space 1}    0.07{col 85}{space 3}0.946{col 93}{space 4}-.0409521{col 106}{space 3} .0438875
+{txt}{space 41}september  {c |}{col 53}{res}{space 2} .0029288{col 65}{space 2} .0214435{col 76}{space 1}    0.14{col 85}{space 3}0.891{col 93}{space 4}-.0391063{col 106}{space 3} .0449638
+{txt}{space 43}october  {c |}{col 53}{res}{space 2} .0203531{col 65}{space 2} .0205936{col 76}{space 1}    0.99{col 85}{space 3}0.323{col 93}{space 4} -.020016{col 106}{space 3} .0607223
+{txt}{space 42}november  {c |}{col 53}{res}{space 2} .0430768{col 65}{space 2} .0218875{col 76}{space 1}    1.97{col 85}{space 3}0.049{col 93}{space 4} .0001714{col 106}{space 3} .0859823
+{txt}{space 42}december  {c |}{col 53}{res}{space 2} .0253546{col 65}{space 2} .0229588{col 76}{space 1}    1.10{col 85}{space 3}0.269{col 93}{space 4}-.0196508{col 106}{space 3}   .07036
+{txt}{space 51} {c |}
+{space 43}statefip {c |}
+{space 43}alabama  {c |}{col 53}{res}{space 2}-.0989983{col 65}{space 2} .0353792{col 76}{space 1}   -2.80{col 85}{space 3}0.005{col 93}{space 4}-.1683511{col 106}{space 3}-.0296454
+{txt}{space 44}alaska  {c |}{col 53}{res}{space 2} .0609699{col 65}{space 2}  .036624{col 76}{space 1}    1.66{col 85}{space 3}0.096{col 93}{space 4}-.0108231{col 106}{space 3} .1327629
+{txt}{space 43}arizona  {c |}{col 53}{res}{space 2}-.0649577{col 65}{space 2} .0319883{col 76}{space 1}   -2.03{col 85}{space 3}0.042{col 93}{space 4}-.1276635{col 106}{space 3} -.002252
+{txt}{space 42}arkansas  {c |}{col 53}{res}{space 2}-.2790091{col 65}{space 2} .0373282{col 76}{space 1}   -7.47{col 85}{space 3}0.000{col 93}{space 4}-.3521824{col 106}{space 3}-.2058357
+{txt}{space 42}colorado  {c |}{col 53}{res}{space 2} .0137127{col 65}{space 2} .0356814{col 76}{space 1}    0.38{col 85}{space 3}0.701{col 93}{space 4}-.0562326{col 106}{space 3}  .083658
+{txt}{space 39}connecticut  {c |}{col 53}{res}{space 2}-.0506389{col 65}{space 2} .0450944{col 76}{space 1}   -1.12{col 85}{space 3}0.261{col 93}{space 4}-.1390362{col 106}{space 3} .0377585
+{txt}{space 30}district of columbia  {c |}{col 53}{res}{space 2} .0258231{col 65}{space 2} .0453605{col 76}{space 1}    0.57{col 85}{space 3}0.569{col 93}{space 4}-.0630958{col 106}{space 3}  .114742
+{txt}{space 43}florida  {c |}{col 53}{res}{space 2}-.2266513{col 65}{space 2} .0264996{col 76}{space 1}   -8.55{col 85}{space 3}0.000{col 93}{space 4}-.2785978{col 106}{space 3}-.1747048
+{txt}{space 43}georgia  {c |}{col 53}{res}{space 2}-.1387225{col 65}{space 2} .0343259{col 76}{space 1}   -4.04{col 85}{space 3}0.000{col 93}{space 4}-.2060105{col 106}{space 3}-.0714344
+{txt}{space 44}hawaii  {c |}{col 53}{res}{space 2}-.0208842{col 65}{space 2} .0474608{col 76}{space 1}   -0.44{col 85}{space 3}0.660{col 93}{space 4}-.1139202{col 106}{space 3} .0721517
+{txt}{space 45}idaho  {c |}{col 53}{res}{space 2}-.1237673{col 65}{space 2} .0270188{col 76}{space 1}   -4.58{col 85}{space 3}0.000{col 93}{space 4}-.1767315{col 106}{space 3}-.0708031
+{txt}{space 42}illinois  {c |}{col 53}{res}{space 2}-.0787309{col 65}{space 2} .0270658{col 76}{space 1}   -2.91{col 85}{space 3}0.004{col 93}{space 4}-.1317872{col 106}{space 3}-.0256745
+{txt}{space 43}indiana  {c |}{col 53}{res}{space 2}-.0465135{col 65}{space 2} .0290074{col 76}{space 1}   -1.60{col 85}{space 3}0.109{col 93}{space 4}-.1033759{col 106}{space 3} .0103489
+{txt}{space 46}iowa  {c |}{col 53}{res}{space 2}-.0337272{col 65}{space 2}  .035952{col 76}{space 1}   -0.94{col 85}{space 3}0.348{col 93}{space 4}-.1042029{col 106}{space 3} .0367485
+{txt}{space 44}kansas  {c |}{col 53}{res}{space 2}-.1272853{col 65}{space 2} .0292138{col 76}{space 1}   -4.36{col 85}{space 3}0.000{col 93}{space 4}-.1845522{col 106}{space 3}-.0700184
+{txt}{space 42}kentucky  {c |}{col 53}{res}{space 2}-.1836602{col 65}{space 2} .0361569{col 76}{space 1}   -5.08{col 85}{space 3}0.000{col 93}{space 4}-.2545377{col 106}{space 3}-.1127828
+{txt}{space 41}louisiana  {c |}{col 53}{res}{space 2}-.0503691{col 65}{space 2} .0437794{col 76}{space 1}   -1.15{col 85}{space 3}0.250{col 93}{space 4}-.1361887{col 106}{space 3} .0354504
+{txt}{space 45}maine  {c |}{col 53}{res}{space 2}-.1634582{col 65}{space 2} .0456826{col 76}{space 1}   -3.58{col 85}{space 3}0.000{col 93}{space 4}-.2530085{col 106}{space 3}-.0739079
+{txt}{space 42}maryland  {c |}{col 53}{res}{space 2}  .039299{col 65}{space 2} .0525311{col 76}{space 1}    0.75{col 85}{space 3}0.454{col 93}{space 4}-.0636762{col 106}{space 3} .1422742
+{txt}{space 37}massachusetts  {c |}{col 53}{res}{space 2}  -.03288{col 65}{space 2} .0339379{col 76}{space 1}   -0.97{col 85}{space 3}0.333{col 93}{space 4}-.0994075{col 106}{space 3} .0336475
+{txt}{space 42}michigan  {c |}{col 53}{res}{space 2}-.1243385{col 65}{space 2} .0264538{col 76}{space 1}   -4.70{col 85}{space 3}0.000{col 93}{space 4}-.1761952{col 106}{space 3}-.0724819
+{txt}{space 41}minnesota  {c |}{col 53}{res}{space 2} .0416777{col 65}{space 2} .0282932{col 76}{space 1}    1.47{col 85}{space 3}0.141{col 93}{space 4}-.0137846{col 106}{space 3}   .09714
+{txt}{space 39}mississippi  {c |}{col 53}{res}{space 2} -.157923{col 65}{space 2} .0295741{col 76}{space 1}   -5.34{col 85}{space 3}0.000{col 93}{space 4}-.2158962{col 106}{space 3}-.0999498
+{txt}{space 42}missouri  {c |}{col 53}{res}{space 2}-.1391753{col 65}{space 2} .0360236{col 76}{space 1}   -3.86{col 85}{space 3}0.000{col 93}{space 4}-.2097913{col 106}{space 3}-.0685592
+{txt}{space 43}montana  {c |}{col 53}{res}{space 2}-.0007342{col 65}{space 2}  .030043{col 76}{space 1}   -0.02{col 85}{space 3}0.981{col 93}{space 4}-.0596266{col 106}{space 3} .0581583
+{txt}{space 42}nebraska  {c |}{col 53}{res}{space 2}-.0544315{col 65}{space 2} .0333751{col 76}{space 1}   -1.63{col 85}{space 3}0.103{col 93}{space 4}-.1198557{col 106}{space 3} .0109927
+{txt}{space 44}nevada  {c |}{col 53}{res}{space 2}-.0547422{col 65}{space 2} .0293269{col 76}{space 1}   -1.87{col 85}{space 3}0.062{col 93}{space 4}-.1122309{col 106}{space 3} .0027466
+{txt}{space 37}new hampshire  {c |}{col 53}{res}{space 2} .0314664{col 65}{space 2} .0318855{col 76}{space 1}    0.99{col 85}{space 3}0.324{col 93}{space 4}-.0310379{col 106}{space 3} .0939706
+{txt}{space 40}new jersey  {c |}{col 53}{res}{space 2}-.0722503{col 65}{space 2} .0475337{col 76}{space 1}   -1.52{col 85}{space 3}0.129{col 93}{space 4}-.1654292{col 106}{space 3} .0209286
+{txt}{space 40}new mexico  {c |}{col 53}{res}{space 2}-.1380348{col 65}{space 2} .0334157{col 76}{space 1}   -4.13{col 85}{space 3}0.000{col 93}{space 4}-.2035387{col 106}{space 3}-.0725308
+{txt}{space 42}new york  {c |}{col 53}{res}{space 2}-.0217777{col 65}{space 2} .0302892{col 76}{space 1}   -0.72{col 85}{space 3}0.472{col 93}{space 4}-.0811528{col 106}{space 3} .0375973
+{txt}{space 36}north carolina  {c |}{col 53}{res}{space 2}-.1107457{col 65}{space 2} .0323837{col 76}{space 1}   -3.42{col 85}{space 3}0.001{col 93}{space 4}-.1742266{col 106}{space 3}-.0472648
+{txt}{space 38}north dakota  {c |}{col 53}{res}{space 2} .1353844{col 65}{space 2} .0383179{col 76}{space 1}    3.53{col 85}{space 3}0.000{col 93}{space 4}  .060271{col 106}{space 3} .2104978
+{txt}{space 46}ohio  {c |}{col 53}{res}{space 2}-.1142383{col 65}{space 2}  .022794{col 76}{space 1}   -5.01{col 85}{space 3}0.000{col 93}{space 4}-.1589208{col 106}{space 3}-.0695558
+{txt}{space 42}oklahoma  {c |}{col 53}{res}{space 2}-.1521558{col 65}{space 2}  .040154{col 76}{space 1}   -3.79{col 85}{space 3}0.000{col 93}{space 4}-.2308685{col 106}{space 3} -.073443
+{txt}{space 44}oregon  {c |}{col 53}{res}{space 2} .0104106{col 65}{space 2} .0328571{col 76}{space 1}    0.32{col 85}{space 3}0.751{col 93}{space 4}-.0539983{col 106}{space 3} .0748194
+{txt}{space 38}pennsylvania  {c |}{col 53}{res}{space 2}-.1109433{col 65}{space 2} .0265943{col 76}{space 1}   -4.17{col 85}{space 3}0.000{col 93}{space 4}-.1630753{col 106}{space 3}-.0588113
+{txt}{space 38}rhode island  {c |}{col 53}{res}{space 2}-.0347071{col 65}{space 2} .0308631{col 76}{space 1}   -1.12{col 85}{space 3}0.261{col 93}{space 4}-.0952073{col 106}{space 3}  .025793
+{txt}{space 36}south carolina  {c |}{col 53}{res}{space 2}-.1424926{col 65}{space 2} .0444865{col 76}{space 1}   -3.20{col 85}{space 3}0.001{col 93}{space 4}-.2296982{col 106}{space 3}-.0552869
+{txt}{space 38}south dakota  {c |}{col 53}{res}{space 2}-.0316719{col 65}{space 2} .0365688{col 76}{space 1}   -0.87{col 85}{space 3}0.386{col 93}{space 4}-.1033567{col 106}{space 3} .0400128
+{txt}{space 41}tennessee  {c |}{col 53}{res}{space 2}-.0894925{col 65}{space 2} .0315185{col 76}{space 1}   -2.84{col 85}{space 3}0.005{col 93}{space 4}-.1512773{col 106}{space 3}-.0277077
+{txt}{space 45}texas  {c |}{col 53}{res}{space 2}-.1470285{col 65}{space 2}  .021564{col 76}{space 1}   -6.82{col 85}{space 3}0.000{col 93}{space 4}-.1892999{col 106}{space 3}-.1047571
+{txt}{space 46}utah  {c |}{col 53}{res}{space 2}-.0156938{col 65}{space 2} .0283939{col 76}{space 1}   -0.55{col 85}{space 3}0.580{col 93}{space 4}-.0713536{col 106}{space 3} .0399661
+{txt}{space 43}vermont  {c |}{col 53}{res}{space 2}-.0331778{col 65}{space 2} .0502209{col 76}{space 1}   -0.66{col 85}{space 3}0.509{col 93}{space 4}-.1316244{col 106}{space 3} .0652688
+{txt}{space 42}virginia  {c |}{col 53}{res}{space 2}-.0584222{col 65}{space 2} .0391785{col 76}{space 1}   -1.49{col 85}{space 3}0.136{col 93}{space 4}-.1352226{col 106}{space 3} .0183783
+{txt}{space 40}washington  {c |}{col 53}{res}{space 2} .0751869{col 65}{space 2} .0241303{col 76}{space 1}    3.12{col 85}{space 3}0.002{col 93}{space 4}  .027885{col 106}{space 3} .1224889
+{txt}{space 37}west virginia  {c |}{col 53}{res}{space 2}-.2027036{col 65}{space 2} .0338824{col 76}{space 1}   -5.98{col 85}{space 3}0.000{col 93}{space 4}-.2691223{col 106}{space 3}-.1362848
+{txt}{space 41}wisconsin  {c |}{col 53}{res}{space 2}-.0546412{col 65}{space 2} .0265985{col 76}{space 1}   -2.05{col 85}{space 3}0.040{col 93}{space 4}-.1067815{col 106}{space 3}-.0025009
+{txt}{space 43}wyoming  {c |}{col 53}{res}{space 2}  .117549{col 65}{space 2} .0336903{col 76}{space 1}    3.49{col 85}{space 3}0.000{col 93}{space 4} .0515069{col 106}{space 3} .1835911
+{txt}{space 51} {c |}
+{space 46}_cons {c |}{col 53}{res}{space 2} 5.703262{col 65}{space 2} .0996392{col 76}{space 1}   57.24{col 85}{space 3}0.000{col 93}{space 4} 5.507942{col 106}{space 3} 5.898582
+{txt}{hline 52}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}
+{com}. 
+. est store weekly
+{txt}
+{com}. coefplot weekly, ///
+>     keep(*.hour_bin) ///
+>     drop(_cons) ///
+>     vertical ///
+>     xline(6, lpattern(dash)) ///
+>     yline(0, lcolor(black)) ///
+>     recast(connected) ///
+>     ciopts(recast(rarea) color(gs12)) ///
+>     msymbol(D) ///
+>     title("(B) log Weekly Wages") ///
+>     xtitle("Hours bin (usual weekly hours)") ///
+>     ytitle("log of Hourly Wages") ///
+>     legend(on position(6)order(1 "95% confidence interval" 2 "Point estimate"))
+{res}{txt}
+{com}. 
+. graph export "Graph2.png", as(png) name("Graph") replace
+{txt}{p 0 4 2}
+file {bf}
+Graph2.png{rm}
+saved as
+PNG
+format
+{p_end}
+
+{com}. 
+. 
+. 
+. 
+. 
+. ** Dropping extra variables
+. drop quhrswork1 quhrswork2 quhrsworkt uhrswork2 uhrswork1 uhrsworkt ind occ empstat earnweek2 
+{txt}
+{com}. drop serial hwtfinl cpsid asecflag pernum wtfinl cpsidp cpsidv earnweek_cpiu_2010
+{txt}
+{com}. 
+{txt}end of do-file
+
+{com}. log close
+      {txt}name:  {res}<unnamed>
+       {txt}log:  {res}E:\RA_01_26\STATA_assessment.smcl
+  {txt}log type:  {res}smcl
+ {txt}closed on:  {res}29 Jan 2026, 00:57:01
+{txt}{.-}
+{smcl}
+{txt}{sf}{ul off}
